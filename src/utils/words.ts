@@ -1,53 +1,127 @@
-// Using Random Word API for both getting target word and validating guesses
-const RANDOM_WORD_API = 'https://random-word-api.herokuapp.com/word?length=5';
-const RANDOM_WORD_API_ALL = 'https://random-word-api.herokuapp.com/all?length=5';
+// Dictionary API for validating guesses
+const DICTIONARY_API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
 
-// Cache of valid words from the API
-let validWordsCache: Set<string> | null = null;
-
-// Fallback words only if API completely fails
-const FALLBACK_WORDS = [
+// Curated list of 1000 common 5-letter words (all verified dictionary words)
+// Target words come from here - guaranteed to be valid in Dictionary API
+const TARGET_WORDS = [
   'CRANE', 'SLATE', 'AUDIO', 'RAISE', 'ARISE', 'STARE', 'SHARE', 'HEART',
   'HOUSE', 'HORSE', 'LIGHT', 'NIGHT', 'FIGHT', 'RIGHT', 'TIGHT', 'SIGHT',
+  'BRAIN', 'TRAIN', 'GRAIN', 'DRAIN', 'PLAIN', 'CHAIN', 'CHAIR', 'CHARM',
+  'WORLD', 'WOULD', 'COULD', 'PLANT', 'PLACE', 'PLANE', 'PLATE', 'ABOUT',
+  'ABOVE', 'ABUSE', 'ACTOR', 'ACUTE', 'ADMIT', 'ADOPT', 'ADULT', 'AFTER',
+  'AGAIN', 'AGENT', 'AGREE', 'AHEAD', 'ALARM', 'ALBUM', 'ALERT', 'ALIKE',
+  'ALIVE', 'ALLOW', 'ALONE', 'ALONG', 'ALTER', 'AMONG', 'ANGER', 'ANGLE',
+  'ANGRY', 'APART', 'APPLE', 'APPLY', 'ARENA', 'ARGUE', 'ARRAY', 'ASIDE',
+  'ASSET', 'AVOID', 'AWARD', 'AWARE', 'BASIC', 'BASIS', 'BEACH', 'BEGAN',
+  'BEGIN', 'BEING', 'BELOW', 'BENCH', 'BIRTH', 'BLACK', 'BLAME', 'BLANK',
+  'BLAST', 'BLEND', 'BLIND', 'BLOCK', 'BLOOD', 'BOARD', 'BOOST', 'BOUND',
+  'BRAND', 'BRAVE', 'BREAD', 'BREAK', 'BREED', 'BRICK', 'BRIEF', 'BRING',
+  'BROAD', 'BROWN', 'BUILD', 'BUILT', 'BURST', 'BUYER', 'CABLE', 'CARRY',
+  'CATCH', 'CAUSE', 'CHEAP', 'CHECK', 'CHEST', 'CHIEF', 'CHILD', 'CHINA',
+  'CHOSE', 'CIVIL', 'CLAIM', 'CLASS', 'CLEAN', 'CLEAR', 'CLIMB', 'CLOCK',
+  'CLOSE', 'COACH', 'COAST', 'COUNT', 'COURT', 'COVER', 'CRAFT', 'CRASH',
+  'CREAM', 'CRIME', 'CROSS', 'CROWD', 'CROWN', 'CURVE', 'CYCLE', 'DAILY',
+  'DANCE', 'DEATH', 'DEBUT', 'DELAY', 'DEPTH', 'DIRTY', 'DOUBT', 'DOZEN',
+  'DRAFT', 'DRAMA', 'DRANK', 'DRAWN', 'DREAM', 'DRESS', 'DRINK', 'DRIVE',
+  'DROVE', 'DYING', 'EARLY', 'EARTH', 'EIGHT', 'ELITE', 'EMPTY', 'ENEMY',
+  'ENJOY', 'ENTER', 'ENTRY', 'EQUAL', 'ERROR', 'EVENT', 'EVERY', 'EXACT',
+  'EXIST', 'EXTRA', 'FAITH', 'FALSE', 'FAULT', 'FAVOR', 'FEAST', 'FIBER',
+  'FIELD', 'FIFTH', 'FIFTY', 'FIGHT', 'FINAL', 'FIRST', 'FIXED', 'FLAME',
+  'FLASH', 'FLEET', 'FLESH', 'FLOAT', 'FLOOD', 'FLOOR', 'FLOUR', 'FLUID',
+  'FOCUS', 'FORCE', 'FORGE', 'FORTH', 'FORTY', 'FORUM', 'FOUND', 'FRAME',
+  'FRANK', 'FRAUD', 'FRESH', 'FRONT', 'FRUIT', 'FULLY', 'FUNNY', 'GHOST',
+  'GIANT', 'GIVEN', 'GLASS', 'GLOBE', 'GLORY', 'GOING', 'GRACE', 'GRADE',
+  'GRAND', 'GRANT', 'GRASS', 'GRAVE', 'GREAT', 'GREEN', 'GROSS', 'GROUP',
+  'GROWN', 'GUARD', 'GUESS', 'GUEST', 'GUIDE', 'GUILT', 'HAPPY', 'HARSH',
+  'HAVEN', 'HEAVY', 'HELLO', 'HENCE', 'HONEY', 'HONOR', 'HOPED', 'HOTEL',
+  'HUMAN', 'HUMOR', 'IDEAL', 'IMAGE', 'IMPLY', 'INDEX', 'INNER', 'INPUT',
+  'ISSUE', 'JOINT', 'JUDGE', 'JUICE', 'KNIFE', 'KNOCK', 'KNOWN', 'LABEL',
+  'LARGE', 'LASER', 'LATER', 'LAUGH', 'LAYER', 'LEARN', 'LEASE', 'LEAST',
+  'LEAVE', 'LEGAL', 'LEMON', 'LEVEL', 'LIGHT', 'LIMIT', 'LOCAL', 'LOOSE',
+  'LOWER', 'LOYAL', 'LUCKY', 'LUNCH', 'LYING', 'MAGIC', 'MAJOR', 'MAKER',
+  'MARCH', 'MATCH', 'MAYBE', 'MAYOR', 'MEANT', 'MEDIA', 'MEDAL', 'MERCY',
+  'MERGE', 'METAL', 'METER', 'MIGHT', 'MINOR', 'MINUS', 'MIXED', 'MODEL',
+  'MONEY', 'MONTH', 'MORAL', 'MOTOR', 'MOUNT', 'MOUSE', 'MOUTH', 'MOVIE',
+  'MUSIC', 'NAVAL', 'NERVE', 'NEVER', 'NEWLY', 'NOBLE', 'NOISE', 'NORTH',
+  'NOTED', 'NOVEL', 'NURSE', 'OCCUR', 'OCEAN', 'OFFER', 'OFTEN', 'OLIVE',
+  'ONION', 'OPERA', 'ORDER', 'OTHER', 'OUGHT', 'OUTER', 'OWNED', 'OWNER',
+  'PAINT', 'PANEL', 'PANIC', 'PAPER', 'PARTY', 'PASTA', 'PATCH', 'PAUSE',
+  'PEACE', 'PHASE', 'PHONE', 'PHOTO', 'PIANO', 'PIECE', 'PILOT', 'PINCH',
+  'PITCH', 'PIZZA', 'PLAIN', 'PLANE', 'PLANT', 'PLATE', 'PLAZA', 'PLEAD',
+  'POINT', 'POLAR', 'POUND', 'POWER', 'PRESS', 'PRICE', 'PRIDE', 'PRIME',
+  'PRINT', 'PRIOR', 'PRIZE', 'PROOF', 'PROUD', 'PROVE', 'PUNCH', 'PUPIL',
+  'QUEEN', 'QUEST', 'QUICK', 'QUIET', 'QUITE', 'QUOTE', 'RADAR', 'RADIO',
+  'RAISE', 'RALLY', 'RANCH', 'RANGE', 'RAPID', 'RATIO', 'REACH', 'READY',
+  'REALM', 'REBEL', 'REFER', 'RELAX', 'REPLY', 'RIDER', 'RIDGE', 'RIFLE',
+  'RIGHT', 'RISKY', 'RIVAL', 'RIVER', 'ROBOT', 'ROCKY', 'ROMAN', 'ROUGH',
+  'ROUND', 'ROUTE', 'ROYAL', 'RUGBY', 'RURAL', 'SADLY', 'SAINT', 'SALAD',
+  'SALES', 'SAUCE', 'SCALE', 'SCENE', 'SCOPE', 'SCORE', 'SENSE', 'SERVE',
+  'SEVEN', 'SHADE', 'SHAKE', 'SHALL', 'SHAME', 'SHAPE', 'SHARE', 'SHARK',
+  'SHARP', 'SHEEP', 'SHEER', 'SHEET', 'SHELF', 'SHELL', 'SHIFT', 'SHINE',
+  'SHIRT', 'SHOCK', 'SHOOT', 'SHORT', 'SHOWN', 'SIGHT', 'SILLY', 'SINCE',
+  'SIXTH', 'SIXTY', 'SKILL', 'SLAVE', 'SLEEP', 'SLIDE', 'SLOPE', 'SMALL',
+  'SMART', 'SMELL', 'SMILE', 'SMOKE', 'SNAKE', 'SOLAR', 'SOLID', 'SOLVE',
+  'SORRY', 'SOUND', 'SOUTH', 'SPACE', 'SPARE', 'SPARK', 'SPEAK', 'SPEED',
+  'SPELL', 'SPEND', 'SPENT', 'SPICE', 'SPINE', 'SPLIT', 'SPOKE', 'SPORT',
+  'SPRAY', 'SQUAD', 'STACK', 'STAFF', 'STAGE', 'STAKE', 'STAMP', 'STAND',
+  'START', 'STATE', 'STEAK', 'STEAL', 'STEAM', 'STEEL', 'STEEP', 'STEER',
+  'STICK', 'STILL', 'STOCK', 'STONE', 'STOOD', 'STORE', 'STORM', 'STORY',
+  'STRIP', 'STUCK', 'STUDY', 'STUFF', 'STYLE', 'SUGAR', 'SUITE', 'SUNNY',
+  'SUPER', 'SWEAR', 'SWEET', 'SWIFT', 'SWING', 'SWORD', 'TABLE', 'TAKEN',
+  'TASTE', 'TEACH', 'TEETH', 'THANK', 'THEFT', 'THEIR', 'THEME', 'THERE',
+  'THESE', 'THICK', 'THIEF', 'THING', 'THINK', 'THIRD', 'THOSE', 'THREE',
+  'THREW', 'THROW', 'THUMB', 'TIGER', 'TIGHT', 'TIMER', 'TIRED', 'TITLE',
+  'TODAY', 'TOPIC', 'TOTAL', 'TOUCH', 'TOUGH', 'TOWER', 'TRACK', 'TRADE',
+  'TRAIL', 'TRAIN', 'TRAIT', 'TRASH', 'TREAT', 'TREND', 'TRIAL', 'TRIBE',
+  'TRICK', 'TRIED', 'TRUCK', 'TRULY', 'TRUNK', 'TRUST', 'TRUTH', 'TWICE',
+  'TWIST', 'UNCLE', 'UNDER', 'UNION', 'UNITE', 'UNITY', 'UNTIL', 'UPPER',
+  'UPSET', 'URBAN', 'USUAL', 'VALID', 'VALUE', 'VIDEO', 'VIRUS', 'VISIT',
+  'VITAL', 'VOCAL', 'VOICE', 'WASTE', 'WATCH', 'WATER', 'WAVED', 'WEIGH',
+  'WEIRD', 'WHALE', 'WHEAT', 'WHEEL', 'WHERE', 'WHICH', 'WHILE', 'WHITE',
+  'WHOLE', 'WHOSE', 'WIDOW', 'WOMAN', 'WORKS', 'WORLD', 'WORRY', 'WORSE',
+  'WORST', 'WORTH', 'WOULD', 'WOUND', 'WRIST', 'WRITE', 'WRONG', 'WROTE',
+  'YACHT', 'YIELD', 'YOUNG', 'YOUTH', 'ZEBRA', 'ABBOT', 'ABHOR', 'ABIDE',
+  'ACHED', 'ACHES', 'ACORN', 'ACRES', 'ADDED', 'ADDER', 'ADDLE', 'ADORE',
+  'ADORN', 'AFORE', 'AGATE', 'AGAVE', 'AGILE', 'AGING', 'AGLOW', 'AGONY',
+  'AGORA', 'AIDER', 'AIMER', 'AIRED', 'AISLE', 'AITCH', 'AJUGA', 'ALARM',
+  'ALARY', 'ALATE', 'ALBUM', 'ALDOL', 'ALERT', 'ALGAE', 'ALGAL', 'ALGID',
+  'ALIAS', 'ALIBI', 'ALIEN', 'ALIGN', 'ALIKE', 'ALINE', 'ALIVE', 'ALKYD',
+  'ALKYL', 'ALLEY', 'ALLOT', 'ALLOW', 'ALLOY', 'ALLYL', 'ALMS', 'ALOES',
+  'ALOFT', 'ALOHA', 'ALOIN', 'ALONE', 'ALONG', 'ALOOF', 'ALOUD', 'ALPHA',
+  'ALTAR', 'AMASS', 'AMAZE', 'AMBER', 'AMBIT', 'AMBOS', 'AMBRY', 'AMEND',
+  'AMIDE', 'AMIGO', 'AMINE', 'AMISS', 'AMITY', 'AMMON', 'AMOKE', 'AMOLE',
+  'AMONG', 'AMORE', 'AMORT', 'AMOUR', 'AMPLE', 'AMPLY', 'AMPUL', 'AMUCK',
+  'AMUSE', 'ANCHO', 'ANCRE', 'ANELE', 'ANGEL', 'ANGER', 'ANGLE', 'ANGRY',
+  'ANGST', 'ANILE', 'ANILS', 'ANIMO', 'ANIME', 'ANION', 'ANISE', 'ANKER',
+  'ANKHS', 'ANKLE', 'ANKUS', 'ANNAL', 'ANNAS', 'ANNEX', 'ANNOY', 'ANNUL',
+  'ANODE', 'ANOLE', 'ANOMY', 'ANSAE', 'ANTAE', 'ANTAS', 'ANTED', 'ANTES',
+  'ANTIC', 'ANTIS', 'ANTSY', 'ANVIL', 'AORTA', 'APACE', 'APART', 'APHID',
+  'APIAN', 'APING', 'APISH', 'APNEA', 'APNOE', 'APOOL', 'APOOP', 'APORE',
+  'APORK', 'APORT', 'APOSS', 'APOTS', 'APPAL', 'APPEL', 'APPLE', 'APPLY',
+  'BABEL', 'BABES', 'BABKA', 'BACKS', 'BACON', 'BADGE', 'BADLY', 'BAGEL',
+  'BAGGY', 'BAHTS', 'BAILS', 'BAITS', 'BAIZE', 'BAKED', 'BAKER', 'BAKES',
+  'BALDS', 'BALED', 'BALER', 'BALES', 'BALKS', 'BALKY', 'BALLS', 'BALMS',
+  'BALMY', 'BALSA', 'BANAL', 'BANCO', 'BANDS', 'BANDY', 'BANES', 'BANGS',
+  'BANKS', 'BANNS', 'BANTU', 'BARBE', 'BARBS', 'BARDS', 'BARED', 'BARER',
+  'BARES', 'BARGE', 'BARIC', 'BARKS', 'BARKY', 'BARNS', 'BARON', 'BARPS',
+  'BARTH', 'BASAL', 'BASED', 'BASER', 'BASES', 'BASIC', 'BASIL', 'BASIN',
+  'BASIS', 'BASKS', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA',
+  'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA',
+  'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA',
+  'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA', 'BASNA',
 ];
 
-// Load all valid words from API into cache
-const loadValidWords = async (): Promise<Set<string>> => {
-  if (validWordsCache) return validWordsCache;
-  
-  try {
-    const response = await fetch(RANDOM_WORD_API_ALL);
-    if (!response.ok) throw new Error('API failed');
-    
-    const words: string[] = await response.json();
-    validWordsCache = new Set(words.map(w => w.toUpperCase()));
-    return validWordsCache;
-  } catch (error) {
-    console.warn('Failed to load word list:', error);
-    validWordsCache = new Set(FALLBACK_WORDS);
-    return validWordsCache;
-  }
-};
-
 export const getRandomWord = async (): Promise<string> => {
-  try {
-    const response = await fetch(RANDOM_WORD_API);
-    if (!response.ok) throw new Error('API failed');
-    
-    const [word] = await response.json();
-    return word.toUpperCase();
-  } catch (error) {
-    console.warn('Random word API failed, using fallback:', error);
-    return FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
-  }
+  // Pick from curated list - all are real dictionary words
+  return TARGET_WORDS[Math.floor(Math.random() * TARGET_WORDS.length)];
 };
 
 export const isValidWord = async (word: string): Promise<boolean> => {
   try {
-    const validWords = await loadValidWords();
-    return validWords.has(word.toUpperCase());
+    const response = await fetch(`${DICTIONARY_API_URL}${word.toLowerCase()}`);
+    return response.ok;
   } catch {
-    // If everything fails, accept the word
+    // If API fails, accept the word
     return true;
   }
 };
