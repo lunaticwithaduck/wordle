@@ -2,6 +2,8 @@
 
 Me and a friend wanted to play 1v1 wordle so I speedran making this with Opus
 
+btw I won
+
 ![1v1 Wordle Gameplay](./public/image.png)
 
 
