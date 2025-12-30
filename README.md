@@ -2,7 +2,7 @@
 
 Me and a friend wanted to play 1v1 wordle so I speedran making this with Opus
 
-![1v1 Wordle Gameplay](./public/image.png.png)
+![1v1 Wordle Gameplay](./public/image.png)
 
 
 ## Tech Stack
