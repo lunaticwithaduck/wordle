@@ -1,34 +1,53 @@
-// Fetch random 5-letter word from API
-const WORD_API_URL = 'https://random-word-api.herokuapp.com/word?length=5';
-const DICTIONARY_API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+// Using Random Word API for both getting target word and validating guesses
+const RANDOM_WORD_API = 'https://random-word-api.herokuapp.com/word?length=5';
+const RANDOM_WORD_API_ALL = 'https://random-word-api.herokuapp.com/all?length=5';
 
-// Fallback words if API fails
+// Cache of valid words from the API
+let validWordsCache: Set<string> | null = null;
+
+// Fallback words only if API completely fails
 const FALLBACK_WORDS = [
   'CRANE', 'SLATE', 'AUDIO', 'RAISE', 'ARISE', 'STARE', 'SHARE', 'HEART',
   'HOUSE', 'HORSE', 'LIGHT', 'NIGHT', 'FIGHT', 'RIGHT', 'TIGHT', 'SIGHT',
-  'BRAIN', 'TRAIN', 'GRAIN', 'DRAIN', 'PLAIN', 'CHAIN', 'CHAIR', 'CHARM',
-  'WORLD', 'WOULD', 'COULD', 'SHOULD', 'PLANT', 'PLACE', 'PLANE', 'PLATE',
 ];
+
+// Load all valid words from API into cache
+const loadValidWords = async (): Promise<Set<string>> => {
+  if (validWordsCache) return validWordsCache;
+  
+  try {
+    const response = await fetch(RANDOM_WORD_API_ALL);
+    if (!response.ok) throw new Error('API failed');
+    
+    const words: string[] = await response.json();
+    validWordsCache = new Set(words.map(w => w.toUpperCase()));
+    return validWordsCache;
+  } catch (error) {
+    console.warn('Failed to load word list:', error);
+    validWordsCache = new Set(FALLBACK_WORDS);
+    return validWordsCache;
+  }
+};
 
 export const getRandomWord = async (): Promise<string> => {
   try {
-    const response = await fetch(WORD_API_URL);
+    const response = await fetch(RANDOM_WORD_API);
     if (!response.ok) throw new Error('API failed');
     
     const [word] = await response.json();
     return word.toUpperCase();
   } catch (error) {
-    console.warn('Word API failed, using fallback:', error);
+    console.warn('Random word API failed, using fallback:', error);
     return FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
   }
 };
 
 export const isValidWord = async (word: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${DICTIONARY_API_URL}${word.toLowerCase()}`);
-    return response.ok;
+    const validWords = await loadValidWords();
+    return validWords.has(word.toUpperCase());
   } catch {
-    // If API fails, accept the word
+    // If everything fails, accept the word
     return true;
   }
 };
